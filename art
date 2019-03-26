@@ -1,0 +1,162 @@
+//RECORDING PDF 
+import processing.pdf.*; 
+boolean record = false;
+
+ArrayList<Particle> particles; 
+ArrayList<Attractor> attractors;
+int totalParticles1 = 20;
+int totalParticles2 = 20;
+int numAttractors = 200; 
+float angle = 0;
+float radius = 200;
+float inc = TWO_PI/numAttractors;
+PVector locs[];
+PVector locs2[]; 
+float radius2 = 2000;
+int continues = 0; 
+
+void setup() {
+  size(1000, 1280);
+
+  //INITIALIZING OBJECTS
+  locs = new PVector [numAttractors]; 
+  locs2 = new PVector [totalParticles1]; 
+
+  particles = new ArrayList<Particle>(); 
+  attractors = new ArrayList<Attractor>();
+
+  //SETTING CIRCULAR SPAWN OF PARTICLES 
+  for (int i = 0; i < totalParticles1; i++) {
+    float x = cos(angle) * radius2 + width/2;
+    float y = sin(angle) * radius2 + height/2;
+    locs2[i] = new PVector(x, y);
+    angle += inc;
+  }
+
+  //CREATING PARTICLES
+  for (int i = 0; i < totalParticles1; i++) {
+    particles.add(new Particle(locs2[i].x*-1, locs2[i].y*-1, random(2, 5), 255, 255, 255));
+    particles.add(new Particle(locs2[i].x, locs2[i].y, random(2, 5), 255, 122, 105));
+  }
+
+  //START RECORDING AUTOMATICALLY
+  if (record) {
+    beginRecord(PDF, "frame-###.pdf");
+    println("STARTING");
+  }
+  
+  background(0);
+}
+
+void draw() {
+  
+  //SETTING CIRCULAR SPAWNING OF ATTRACTORS 
+  if (continues == 0) {
+    for (int i = 0; i< numAttractors; i++) {
+      float x = cos(angle) * radius + width/2;
+      float y = sin(angle) * radius + height/2;
+      locs[i] = new PVector(x, y);
+      angle += inc;
+    }
+    continues = 1;
+  }
+
+  if (continues == 1) {
+    for (int i = 0; i < numAttractors; i++) {
+      attractors.add(new Attractor(locs[i].x, locs[i].y, 40));
+    }
+    continues = 2;
+  }
+
+  for (Particle m : particles) {
+
+    for (Attractor a : attractors) {    
+      m.applyForce(a.attractionForce(m));
+      m.update();
+      m.display(a);
+
+      // DRAG 
+      PVector drag = m.vel.copy();
+      drag.normalize();
+      float c = -0.0005;
+      float speed = m.vel.mag();
+      drag.mult(c*speed*speed);
+      m.applyForce(drag);
+    }
+  }
+  fill(0);
+  strokeWeight(40);
+  stroke(255, 255, 0);
+}
+
+//END RECORDING IF "Q" IS PRESSED
+void keyPressed() {
+  if (key == 'q') {
+    if (record) {
+      endRecord();
+      println("RECORDING FINISHED");
+    }
+    exit();
+  }
+}
+
+class Attractor {
+  float mass; 
+  PVector loc;
+  float angle = PI; 
+  float amp = 10; 
+  float scale = 2; 
+
+  Attractor(float x, float y, float _mass) {
+    loc = new PVector(x, y);
+    mass = _mass;
+  }
+
+  PVector attractionForce(Particle particles) {
+    PVector force = PVector.sub(loc, particles.loc); 
+    float distance = force.mag();
+    force.normalize(); 
+    float g = 1;
+    distance*=distance; 
+    distance = constrain(distance, 5, 50); 
+    float forceMag = (g * mass * particles.mass) /distance; 
+    force.mult(forceMag); 
+    return force;
+  }
+
+  void display() {
+    strokeWeight(1);
+    fill(255);
+    stroke(255,255,0);
+    ellipse(loc.x, loc.y, 20,20); 
+  }
+}
+
+class Particle {
+  PVector loc, vel, acc;   
+  float mass; 
+  float red; 
+  float green;
+  float blue; 
+
+  Particle(float x, float y, float _mass, float _r, float _g, float _b) {
+    loc = new PVector(x, y);
+    vel = new PVector(0, 0);
+    acc = new PVector(0, 0);
+    mass = _mass; 
+    red = _r;
+    green = _g;
+    blue = _b;
+  }
+
+  void applyForce(PVector force) {
+    PVector f = PVector.div(force, mass);
+    acc.add(f);
+  }
+
+  void update() {
+    vel.add(acc);
+    loc.add(vel);
+    vel.limit(4);
+    acc.mult(0);
+  }
